@@ -17,11 +17,19 @@ jobs:
           host: ${{ vars.SSH_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
-          script: |
+          script:
+             |
+            BASE_PATH="/var/inetpub/wwwroot/projetos"
+            # 1. Garante que a pasta do aluno exista no servidor
+            mkdir -p $BASE_PATH/${{ vars.ALUNO_RA }}/${{ vars.PROJETO }}
+
+            # 2. Remove o serviço antigo
             docker service rm user_${{ vars.ALUNO_RA }} || true
+
+            # 3. Sobe o container (agora a pasta existe!)
             docker service create --name user_${{ vars.ALUNO_RA }} \
               --network dockermaster \
-              --mount type=bind,source=${{ vars.REMOTE_TARGET }}/${{ vars.ALUNO_RA }}/${{ vars.ALUNO_PROJETO }},target=/app \
+              --mount type=bind,source=$BASE_PATH/${{ vars.ALUNO_RA }}/${{ vars.ALUNO_PROJETO }},target=/app \
               --restart-condition none \
               python:3.11-slim sh -c "
                 (sleep 14400 && docker service rm user_${{ vars.ALUNO_RA }} &) && 
