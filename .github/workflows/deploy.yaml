@@ -1,0 +1,33 @@
+name: Deploy Inetz Aluno
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Codigo
+        uses: actions/checkout@v4
+
+      - name: Subir Container (Poetry + Auto-Destruicao)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker service rm user_${{ vars.ALUNO_RA }} || true
+            docker service create --name user_${{ vars.ALUNO_RA }} \
+              --network dockermaster \
+              --mount type=bind,source=${{ vars.REMOTE_TARGET }}/${{ vars.ALUNO_RA }}/${{ vars.ALUNO_PROJETO }},target=/app \
+              --restart-condition none \
+              python:3.11-slim sh -c "
+                (sleep 14400 && docker service rm user_${{ vars.ALUNO_RA }} &) && 
+                pip install poetry && 
+                cd /app && 
+                poetry config virtualenvs.create false && 
+                poetry install --no-interaction --no-ansi && 
+                poetry run python main.py
+              "
